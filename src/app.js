@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { randomUUID } = require('crypto');
+const Reservation = require('./models/Reservation');
 
 const SECRET = process.env.JWT_SECRET || 'room-reservation-secret';
 
@@ -205,15 +206,12 @@ app.post('/api/reservations', requireAuth, (req, res) => {
       return res.status(409).json(errorResponse('Room is not available for the selected dates', 409));
     }
 
-    const reservation = {
-      id: randomUUID(),
+    const reservation = new Reservation({
       userId: req.user.sub,
       roomId: payload.roomId,
-      status: 'active',
-      startDate: payload.startDate.toISOString(),
-      endDate: payload.endDate.toISOString(),
-      createdAt: new Date().toISOString(),
-    };
+      startDate: payload.startDate,
+      endDate: payload.endDate,
+    });
 
     reservations.push(reservation);
 
