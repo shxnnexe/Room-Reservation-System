@@ -4,11 +4,19 @@ const request = require('supertest');
 
 const { app, resetState } = require('../src/app');
 
-function buildAuthToken(agent) {
-  return agent
+async function registerAndLogin(email) {
+  const registration = await request(app)
     .post('/api/users/register')
-    .send({ name: 'Alice', email: 'alice@example.com', password: 'secret123' })
-    .then((response) => response.body.data);
+    .send({ name: 'Reservation Tester', email, password: 'secret123' });
+
+  assert.equal(registration.status, 201);
+
+  const login = await request(app)
+    .post('/api/users/login')
+    .send({ email, password: 'secret123' });
+
+  assert.equal(login.status, 200);
+  return login.body.data;
 }
 
 test.beforeEach(() => {
@@ -65,6 +73,24 @@ test('POST /api/reservations prevents overlapping bookings', async () => {
   assert.equal(conflictResponse.status, 409);
   assert.equal(conflictResponse.body.success, false);
   assert.match(conflictResponse.body.error.message, /not available/i);
+});
+
+test('POST /api/reservations creates a reservation linked to its user and room', async () => {
+  const { token, user } = await registerAndLogin('creator@example.com');
+  const response = await request(app)
+    .post('/api/reservations')
+    .set('Authorization', `Bearer ${token}`)
+    .send({ roomId: 'room-101', startDate: '2026-10-20T09:00:00Z', endDate: '2026-10-20T10:00:00Z' });
+
+  assert.equal(response.status, 201);
+  assert.equal(response.body.success, true);
+  assert.ok(response.body.data.id);
+  assert.equal(response.body.data.userId, user.id);
+  assert.equal(response.body.data.roomId, 'room-101');
+  assert.equal(response.body.data.status, 'active');
+  assert.equal(response.body.data.startDate, '2026-10-20T09:00:00.000Z');
+  assert.equal(response.body.data.endDate, '2026-10-20T10:00:00.000Z');
+  assert.ok(Number.isFinite(Date.parse(response.body.data.createdAt)));
 });
 
 test('Protected reservation routes require authentication', async () => {
