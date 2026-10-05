@@ -93,6 +93,31 @@ test('POST /api/reservations creates a reservation linked to its user and room',
   assert.ok(Number.isFinite(Date.parse(response.body.data.createdAt)));
 });
 
+test('GET /api/reservations returns only the authenticated user reservations', async () => {
+  const alice = await registerAndLogin('alice-reservations@example.com');
+  const bob = await registerAndLogin('bob-reservations@example.com');
+
+  const aliceReservation = await request(app)
+    .post('/api/reservations')
+    .set('Authorization', `Bearer ${alice.token}`)
+    .send({ roomId: 'room-101', startDate: '2026-10-20T09:00:00Z', endDate: '2026-10-20T10:00:00Z' });
+  const bobReservation = await request(app)
+    .post('/api/reservations')
+    .set('Authorization', `Bearer ${bob.token}`)
+    .send({ roomId: 'room-102', startDate: '2026-10-20T09:00:00Z', endDate: '2026-10-20T10:00:00Z' });
+
+  assert.equal(aliceReservation.status, 201);
+  assert.equal(bobReservation.status, 201);
+
+  const response = await request(app)
+    .get('/api/reservations')
+    .set('Authorization', `Bearer ${alice.token}`);
+
+  assert.equal(response.status, 200);
+  assert.equal(response.body.success, true);
+  assert.deepEqual(response.body.data.map(({ id }) => id), [aliceReservation.body.data.id]);
+});
+
 test('Protected reservation routes require authentication', async () => {
   const response = await request(app).get('/api/reservations');
 
