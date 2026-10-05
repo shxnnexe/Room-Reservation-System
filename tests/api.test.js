@@ -118,6 +118,38 @@ test('GET /api/reservations returns only the authenticated user reservations', a
   assert.deepEqual(response.body.data.map(({ id }) => id), [aliceReservation.body.data.id]);
 });
 
+test('DELETE /api/reservations/:id cancels only its owner reservation', async () => {
+  const owner = await registerAndLogin('owner@example.com');
+  const otherUser = await registerAndLogin('other-owner@example.com');
+  const created = await request(app)
+    .post('/api/reservations')
+    .set('Authorization', `Bearer ${owner.token}`)
+    .send({ roomId: 'room-101', startDate: '2026-10-20T09:00:00Z', endDate: '2026-10-20T10:00:00Z' });
+
+  assert.equal(created.status, 201);
+
+  const denied = await request(app)
+    .delete(`/api/reservations/${created.body.data.id}`)
+    .set('Authorization', `Bearer ${otherUser.token}`);
+  assert.equal(denied.status, 404);
+
+  const cancelled = await request(app)
+    .delete(`/api/reservations/${created.body.data.id}`)
+    .set('Authorization', `Bearer ${owner.token}`);
+  assert.equal(cancelled.status, 200);
+  assert.deepEqual(cancelled.body.data, { id: created.body.data.id, status: 'cancelled' });
+
+  const reservations = await request(app)
+    .get('/api/reservations')
+    .set('Authorization', `Bearer ${owner.token}`);
+  assert.equal(reservations.body.data[0].status, 'cancelled');
+
+  const repeatedCancellation = await request(app)
+    .delete(`/api/reservations/${created.body.data.id}`)
+    .set('Authorization', `Bearer ${owner.token}`);
+  assert.equal(repeatedCancellation.status, 404);
+});
+
 test('Protected reservation routes require authentication', async () => {
   const response = await request(app).get('/api/reservations');
 
