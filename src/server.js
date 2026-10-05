@@ -1,7 +1,8 @@
-const { app } = require('./app');
+const { createApp } = require('./app');
 
-const PORT = process.env.PORT || 3000;
+const port = Number(process.env.PORT) || 3000;
+const app = createApp();
 
-app.listen(PORT, () => {
-  console.log(`Room reservation API listening on port ${PORT}`);
+app.listen(port, () => {
+  console.log(`Room reservation API listening on port ${port}`);
 });

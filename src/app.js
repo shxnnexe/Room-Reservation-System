@@ -1,245 +1,38 @@
 const express = require('express');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const { randomUUID } = require('crypto');
-const Reservation = require('./models/Reservation');
+const { initializeDatabase } = require('./db');
+const userRoutes = require('./routes/userRoutes');
+const reservationRoutes = require('./routes/reservationRoutes');
+const { getRooms, getRoomById } = require('./controllers/roomController');
 
-const SECRET = process.env.JWT_SECRET || 'room-reservation-secret';
+function createApp({ dbPath, jwtSecret } = {}) {
+  const app = express();
+  const database = initializeDatabase(dbPath);
 
-const rooms = [
-  { id: 'room-101', name: 'Maple Room', capacity: 4, location: 'Floor 1' },
-  { id: 'room-102', name: 'Harbor Room', capacity: 6, location: 'Floor 2' },
-  { id: 'room-103', name: 'Summit Room', capacity: 8, location: 'Floor 3' },
-];
+  app.locals.db = database;
+  app.locals.jwtSecret = jwtSecret || process.env.JWT_SECRET || 'room-reservation-secret';
 
-const users = [];
-const reservations = [];
-
-function successResponse(data, message = 'Request successful') {
-  return { success: true, message, data };
-}
-
-function errorResponse(message, status = 400, details = null) {
-  return {
-    success: false,
-    error: {
-      message,
-      status,
-      details,
-    },
-  };
-}
-
-function getDateValue(value, fieldName) {
-  if (!value) {
-    throw new Error(`${fieldName} is required`);
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    throw new Error(`${fieldName} is not a valid date`);
-  }
-
-  return date;
-}
-
-function validateReservationPayload(payload) {
-  if (!payload || !payload.roomId || !payload.startDate || !payload.endDate) {
-    throw new Error('roomId, startDate, and endDate are required');
-  }
-
-  const startDate = getDateValue(payload.startDate, 'startDate');
-  const endDate = getDateValue(payload.endDate, 'endDate');
-
-  if (startDate >= endDate) {
-    throw new Error('endDate must be after startDate');
-  }
-
-  return {
-    roomId: payload.roomId,
-    startDate,
-    endDate,
-  };
-}
-
-function hasOverlap(startA, endA, startB, endB) {
-  return startA < endB && startB < endA;
-}
-
-function isRoomAvailable(roomId, startDate, endDate, ignoreReservationId = null) {
-  return !reservations.some((reservation) => {
-    if (reservation.status === 'cancelled') {
-      return false;
-    }
-
-    if (ignoreReservationId && reservation.id === ignoreReservationId) {
-      return false;
-    }
-
-    if (reservation.roomId !== roomId) {
-      return false;
-    }
-
-    const reservationStart = new Date(reservation.startDate);
-    const reservationEnd = new Date(reservation.endDate);
-
-    return hasOverlap(startDate, endDate, reservationStart, reservationEnd);
+  app.use(express.json());
+  app.use((req, res, next) => {
+    database.ready.then(() => next(), next);
   });
+
+  app.get('/health', (_req, res) => {
+    res.json({ status: 'ok' });
+  });
+
+  app.use('/api/users', userRoutes);
+  app.get('/api/rooms', getRooms);
+  app.get('/api/rooms/:id', getRoomById);
+  app.use('/api/reservations', reservationRoutes);
+
+  app.use((err, _req, res, _next) => {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error.' });
+  });
+
+  return app;
 }
 
-function requireAuth(req, res, next) {
-  const authHeader = req.headers.authorization || '';
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-
-  if (!token) {
-    return res.status(401).json(errorResponse('Authentication token is required', 401));
-  }
-
-  try {
-    const decoded = jwt.verify(token, SECRET);
-    req.user = decoded;
-    return next();
-  } catch (error) {
-    return res.status(401).json(errorResponse('Invalid or expired token', 401));
-  }
-}
-
-function resetState() {
-  users.length = 0;
-  reservations.length = 0;
-}
-
-const app = express();
-app.use(express.json());
-
-app.get('/health', (req, res) => {
-  res.json(successResponse({ ok: true }, 'API is healthy'));
-});
-
-app.post('/api/users/register', async (req, res) => {
-  try {
-    const { name, email, password } = req.body || {};
-
-    if (!name || !email || !password) {
-      return res.status(400).json(errorResponse('name, email, and password are required', 400));
-    }
-
-    const normalizedEmail = String(email).trim().toLowerCase();
-    if (users.some((user) => user.email === normalizedEmail)) {
-      return res.status(409).json(errorResponse('User already exists', 409));
-    }
-
-    const passwordHash = await bcrypt.hash(password, 10);
-    const user = {
-      id: randomUUID(),
-      name: String(name).trim(),
-      email: normalizedEmail,
-      password: passwordHash,
-      createdAt: new Date().toISOString(),
-    };
-
-    users.push(user);
-
-    return res.status(201).json(
-      successResponse({ id: user.id, name: user.name, email: user.email }, 'User registered successfully')
-    );
-  } catch (error) {
-    return res.status(500).json(errorResponse('Unable to register user', 500, error.message));
-  }
-});
-
-app.post('/api/users/login', async (req, res) => {
-  try {
-    const { email, password } = req.body || {};
-
-    if (!email || !password) {
-      return res.status(400).json(errorResponse('email and password are required', 400));
-    }
-
-    const normalizedEmail = String(email).trim().toLowerCase();
-    const user = users.find((entry) => entry.email === normalizedEmail);
-
-    if (!user) {
-      return res.status(401).json(errorResponse('Invalid email or password', 401));
-    }
-
-    const passwordMatches = await bcrypt.compare(password, user.password);
-    if (!passwordMatches) {
-      return res.status(401).json(errorResponse('Invalid email or password', 401));
-    }
-
-    const token = jwt.sign({ sub: user.id, email: user.email }, SECRET, { expiresIn: '1h' });
-
-    return res.json(
-      successResponse(
-        {
-          token,
-          user: { id: user.id, name: user.name, email: user.email },
-        },
-        'Login successful'
-      )
-    );
-  } catch (error) {
-    return res.status(500).json(errorResponse('Unable to login', 500, error.message));
-  }
-});
-
-app.get('/api/rooms', (req, res) => {
-  return res.json(successResponse(rooms, 'Available rooms retrieved'));
-});
-
-app.get('/api/reservations', requireAuth, (req, res) => {
-  const userReservations = reservations.filter((reservation) => reservation.userId === req.user.sub);
-  return res.json(successResponse(userReservations, 'Reservations retrieved'));
-});
-
-app.post('/api/reservations', requireAuth, (req, res) => {
-  try {
-    const payload = validateReservationPayload(req.body);
-    const roomExists = rooms.some((room) => room.id === payload.roomId);
-
-    if (!roomExists) {
-      return res.status(404).json(errorResponse('Room not found', 404));
-    }
-
-    if (!isRoomAvailable(payload.roomId, payload.startDate, payload.endDate)) {
-      return res.status(409).json(errorResponse('Room is not available for the selected dates', 409));
-    }
-
-    const reservation = new Reservation({
-      userId: req.user.sub,
-      roomId: payload.roomId,
-      startDate: payload.startDate,
-      endDate: payload.endDate,
-    });
-
-    reservations.push(reservation);
-
-    return res.status(201).json(successResponse(reservation, 'Reservation created successfully'));
-  } catch (error) {
-    return res.status(400).json(errorResponse(error.message, 400));
-  }
-});
-
-app.delete('/api/reservations/:id', requireAuth, (req, res) => {
-  const reservation = reservations.find(
-    (entry) => entry.id === req.params.id && entry.userId === req.user.sub && entry.status !== 'cancelled'
-  );
-
-  if (!reservation) {
-    return res.status(404).json(errorResponse('Reservation not found', 404));
-  }
-
-  reservation.status = 'cancelled';
-  return res.json(successResponse({ id: reservation.id, status: 'cancelled' }, 'Reservation cancelled successfully'));
-});
-
-app.use((req, res) => {
-  return res.status(404).json(errorResponse('Route not found', 404));
-});
-
-app.use((error, req, res, next) => {
-  return res.status(500).json(errorResponse('Internal server error', 500, error.message));
-});
-
-module.exports = { app, resetState, users, rooms, reservations };
+module.exports = {
+  createApp,
+};
