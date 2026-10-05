@@ -2,7 +2,7 @@ const express = require('express');
 const { initializeDatabase } = require('./db');
 const userRoutes = require('./routes/userRoutes');
 const reservationRoutes = require('./routes/reservationRoutes');
-const { getRooms, getRoomById } = require('./controllers/roomController');
+const roomRoutes = require('./routes/roomRoutes');
 
 function createApp({ dbPath, jwtSecret } = {}) {
   const app = express();
@@ -21,9 +21,8 @@ function createApp({ dbPath, jwtSecret } = {}) {
   });
 
   app.use('/api/users', userRoutes);
-  app.get('/api/rooms', getRooms);
-  app.get('/api/rooms/:id', getRoomById);
   app.use('/api/reservations', reservationRoutes);
+  app.use('/api/rooms', roomRoutes);
 
   app.use((err, _req, res, _next) => {
     console.error(err);

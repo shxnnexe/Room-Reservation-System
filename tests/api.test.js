@@ -6,6 +6,7 @@ const path = require('node:path');
 const request = require('supertest');
 const sqlite3 = require('sqlite3').verbose();
 const { createApp } = require('../src/app');
+const { createRoom } = require('../src/models/Room');
 
 async function withApp(runTests) {
   const dbPath = path.join(
@@ -16,6 +17,18 @@ async function withApp(runTests) {
 
   try {
     await app.locals.db.ready;
+    await createRoom(app.locals.db, {
+      room_name: 'Meeting Room',
+      room_number: 'R101',
+      capacity: 8,
+      description: 'Team meetings',
+    });
+    await createRoom(app.locals.db, {
+      room_name: 'Training Room',
+      room_number: 'R202',
+      capacity: 12,
+      description: 'Training sessions',
+    });
     await runTests(app);
   } finally {
     await new Promise((resolve, reject) => {
@@ -66,7 +79,7 @@ async function createLegacyReservationsTable(dbPath) {
         db.run(
           `INSERT INTO reservations (room_name, user_id, start_time, end_time)
            VALUES (?, ?, ?, ?)`,
-          ['R101', 999, '2026-10-10T09:00:00.000Z', '2026-10-10T10:00:00.000Z'],
+          ['Meeting Room', 999, '2026-10-10T09:00:00.000Z', '2026-10-10T10:00:00.000Z'],
           (insertError) => {
             db.close((closeError) => {
               if (insertError || closeError) {
@@ -86,9 +99,8 @@ test('GET /api/rooms returns the room inventory', async () => {
   await withApp(async (app) => {
     const response = await request(app).get('/api/rooms');
     assert.equal(response.status, 200);
-    assert.equal(response.body.success, true);
-    assert.ok(Array.isArray(response.body.data));
-    assert.ok(response.body.data.length > 0);
+    assert.ok(Array.isArray(response.body));
+    assert.equal(response.body.length, 2);
   });
 });
 
@@ -102,9 +114,15 @@ test('database migration preserves existing reservations for conflict checks', a
 
   try {
     await app.locals.db.ready;
+    await createRoom(app.locals.db, {
+      room_name: 'Meeting Room',
+      room_number: 'R101',
+      capacity: 8,
+      description: 'Team meetings',
+    });
     const { token } = await registerAndLogin(app, 'legacy@example.com');
     const conflict = await createReservation(app, token, {
-      roomId: 'R101',
+      roomId: '1',
       startDate: '2026-10-10T09:30:00Z',
       endDate: '2026-10-10T10:30:00Z',
     });
@@ -127,7 +145,7 @@ test('POST /api/reservations validates dates and room IDs', async () => {
     const { token } = await registerAndLogin(app, 'validation@example.com');
 
     const invalidDates = await createReservation(app, token, {
-      roomId: 'R101',
+      roomId: '1',
       startDate: '2026-10-20',
       endDate: '2026-10-19',
     });
@@ -148,7 +166,7 @@ test('POST /api/reservations creates a persistent reservation linked to its user
   await withApp(async (app) => {
     const { token, user } = await registerAndLogin(app, 'creator@example.com');
     const response = await createReservation(app, token, {
-      roomId: 'R101',
+      roomId: '1',
       startDate: '2026-10-20',
       endDate: '2026-10-21',
     });
@@ -157,8 +175,8 @@ test('POST /api/reservations creates a persistent reservation linked to its user
     assert.equal(response.body.success, true);
     assert.ok(response.body.data.id);
     assert.equal(response.body.data.userId, user.id);
-    assert.equal(response.body.data.roomId, 'R101');
-    assert.equal(response.body.data.roomName, 'single');
+    assert.equal(response.body.data.roomId, '1');
+    assert.equal(response.body.data.roomName, 'Meeting Room');
     assert.equal(response.body.data.status, 'active');
     assert.equal(response.body.data.startDate, '2026-10-20T00:00:00.000Z');
     assert.equal(response.body.data.endDate, '2026-10-21T00:00:00.000Z');
@@ -172,12 +190,12 @@ test('GET /api/reservations returns only the authenticated user reservations', a
     const bob = await registerAndLogin(app, 'bob-reservations@example.com');
 
     const aliceReservation = await createReservation(app, alice.token, {
-      roomId: 'R101',
+      roomId: '1',
       startDate: '2026-10-20',
       endDate: '2026-10-21',
     });
     const bobReservation = await createReservation(app, bob.token, {
-      roomId: 'R202',
+      roomId: '2',
       startDate: '2026-10-20',
       endDate: '2026-10-21',
     });
@@ -198,7 +216,7 @@ test('DELETE /api/reservations/:id enforces ownership and makes the time availab
     const owner = await registerAndLogin(app, 'owner@example.com');
     const otherUser = await registerAndLogin(app, 'other-owner@example.com');
     const created = await createReservation(app, owner.token, {
-      roomId: 'R101',
+      roomId: '1',
       startDate: '2026-10-20',
       endDate: '2026-10-21',
     });
@@ -216,7 +234,7 @@ test('DELETE /api/reservations/:id enforces ownership and makes the time availab
     assert.equal(cancelled.body.data.status, 'cancelled');
 
     const rebooked = await createReservation(app, owner.token, {
-      roomId: 'R101',
+      roomId: '1',
       startDate: '2026-10-20',
       endDate: '2026-10-21',
     });
@@ -234,12 +252,12 @@ test('POST /api/reservations prevents overlaps but allows adjacent reservations'
     const { token } = await registerAndLogin(app, 'availability@example.com');
 
     const first = await createReservation(app, token, {
-      roomId: 'R101',
+      roomId: '1',
       startDate: '2026-10-10T09:00:00Z',
       endDate: '2026-10-10T10:00:00Z',
     });
     const adjacent = await createReservation(app, token, {
-      roomId: 'R101',
+      roomId: '1',
       startDate: '2026-10-10T10:00:00Z',
       endDate: '2026-10-10T11:00:00Z',
     });
@@ -247,14 +265,14 @@ test('POST /api/reservations prevents overlaps but allows adjacent reservations'
     assert.equal(adjacent.status, 201);
 
     const overlap = await createReservation(app, token, {
-      roomId: 'R101',
+      roomId: '1',
       startDate: '2026-10-10T09:30:00Z',
       endDate: '2026-10-10T10:30:00Z',
     });
     assert.equal(overlap.status, 409);
 
     const otherRoom = await createReservation(app, token, {
-      roomId: 'R202',
+      roomId: '2',
       startDate: '2026-10-10T09:30:00Z',
       endDate: '2026-10-10T10:30:00Z',
     });
@@ -266,7 +284,7 @@ test('simultaneous reservations cannot claim the same room and time', async () =
   await withApp(async (app) => {
     const { token } = await registerAndLogin(app, 'concurrent@example.com');
     const payload = {
-      roomId: 'R101',
+      roomId: '1',
       startDate: '2026-10-10T09:00:00Z',
       endDate: '2026-10-10T10:00:00Z',
     };
@@ -284,7 +302,7 @@ test('reservation routes require authentication', async () => {
     const list = await request(app).get('/api/reservations');
     const create = await request(app)
       .post('/api/reservations')
-      .send({ roomId: 'R101', startDate: '2026-10-10', endDate: '2026-10-11' });
+      .send({ roomId: '1', startDate: '2026-10-10', endDate: '2026-10-11' });
 
     assert.equal(list.status, 401);
     assert.equal(create.status, 401);

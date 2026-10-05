@@ -130,10 +130,10 @@ class Reservation {
         const conflict = await get(
           db,
           `SELECT id FROM reservations
-           WHERE room_id = ? AND status = 'active'
+           WHERE (room_id = ? OR room_name = ?) AND status = 'active'
              AND start_time < ? AND end_time > ?
            LIMIT 1`,
-          [reservation.roomId, reservation.endDate, reservation.startDate]
+          [reservation.roomId, reservation.roomName, reservation.endDate, reservation.startDate]
         );
 
         if (conflict) {

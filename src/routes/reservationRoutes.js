@@ -1,7 +1,7 @@
 const express = require('express');
 const authMiddleware = require('../middleware/authMiddleware');
 const Reservation = require('../models/Reservation');
-const { findRoomById } = require('../controllers/roomController');
+const { findRoomById } = require('../models/Room');
 
 const router = express.Router();
 router.use(authMiddleware());
@@ -34,7 +34,7 @@ router.post('/', async (req, res) => {
     });
   }
 
-  const room = legacyPayload ? null : findRoomById(roomId.trim());
+  const room = legacyPayload ? null : await findRoomById(req.app.locals.db, roomId.trim());
   if (!legacyPayload && !room) {
     return res.status(404).json({
       success: false,
@@ -46,8 +46,8 @@ router.post('/', async (req, res) => {
   try {
     reservation = await Reservation.createIfAvailable(req.app.locals.db, {
       userId: req.user.id,
-      roomId: room ? room.id : roomId.trim(),
-      roomName: room ? room.name || room.type || room.id : roomId.trim(),
+      roomId: room ? String(room.id) : roomId.trim(),
+      roomName: room ? room.room_name : roomId.trim(),
       startDate,
       endDate,
     });
