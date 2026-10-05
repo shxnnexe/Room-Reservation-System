@@ -75,6 +75,45 @@ test('POST /api/reservations prevents overlapping bookings', async () => {
   assert.match(conflictResponse.body.error.message, /not available/i);
 });
 
+test('POST /api/reservations allows adjacent dates and reuses cancelled time slots', async () => {
+  const { token } = await registerAndLogin('availability@example.com');
+  const auth = { Authorization: `Bearer ${token}` };
+  const first = await request(app)
+    .post('/api/reservations')
+    .set(auth)
+    .send({ roomId: 'room-101', startDate: '2026-10-10T09:00:00Z', endDate: '2026-10-10T10:00:00Z' });
+  const adjacent = await request(app)
+    .post('/api/reservations')
+    .set(auth)
+    .send({ roomId: 'room-101', startDate: '2026-10-10T10:00:00Z', endDate: '2026-10-10T11:00:00Z' });
+
+  assert.equal(first.status, 201);
+  assert.equal(adjacent.status, 201);
+
+  const overlap = await request(app)
+    .post('/api/reservations')
+    .set(auth)
+    .send({ roomId: 'room-101', startDate: '2026-10-10T09:30:00Z', endDate: '2026-10-10T10:30:00Z' });
+  assert.equal(overlap.status, 409);
+
+  const otherRoom = await request(app)
+    .post('/api/reservations')
+    .set(auth)
+    .send({ roomId: 'room-102', startDate: '2026-10-10T09:30:00Z', endDate: '2026-10-10T10:30:00Z' });
+  assert.equal(otherRoom.status, 201);
+
+  const cancellation = await request(app)
+    .delete(`/api/reservations/${first.body.data.id}`)
+    .set(auth);
+  assert.equal(cancellation.status, 200);
+
+  const rebooked = await request(app)
+    .post('/api/reservations')
+    .set(auth)
+    .send({ roomId: 'room-101', startDate: '2026-10-10T09:00:00Z', endDate: '2026-10-10T10:00:00Z' });
+  assert.equal(rebooked.status, 201);
+});
+
 test('POST /api/reservations creates a reservation linked to its user and room', async () => {
   const { token, user } = await registerAndLogin('creator@example.com');
   const response = await request(app)
