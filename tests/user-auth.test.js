@@ -176,6 +176,20 @@ test('rejects reservation access without authentication', async () => {
   }
 });
 
+test('rejects reservation access with an invalid token', async () => {
+  const dbPath = getDbPath();
+  const app = createApp({ dbPath });
+
+  try {
+    await request(app)
+      .get('/api/reservations')
+      .set('Authorization', 'Bearer invalid-token')
+      .expect(401);
+  } finally {
+    await closeAndRemoveDb(app, dbPath);
+  }
+});
+
 test('allows authenticated users to create reservations', async () => {
   const dbPath = getDbPath();
   const app = createApp({ dbPath });
