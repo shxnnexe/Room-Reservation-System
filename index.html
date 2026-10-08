@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Room Reservation System</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <main class="page">
+      <header class="page-header">
+        <p class="eyebrow">Room Reservation System</p>
+        <h1>Find your next meeting space</h1>
+        <p class="intro">Browse the rooms available in the reservation system.</p>
+      </header>
+
+      <section aria-labelledby="rooms-heading">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Workspace directory</p>
+            <h2 id="rooms-heading">Available rooms</h2>
+          </div>
+          <button class="button button-secondary" id="refresh-rooms" type="button">Refresh rooms</button>
+        </div>
+        <p class="status" id="rooms-status" role="status" aria-live="polite">Loading rooms...</p>
+        <div class="room-grid" id="rooms-list"></div>
+      </section>
+    </main>
+  </body>
+</html>
