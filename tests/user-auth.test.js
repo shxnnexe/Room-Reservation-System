@@ -106,6 +106,32 @@ test('rejects duplicate registration attempts for the same email', async () => {
   }
 });
 
+test('rejects invalid login credentials', async () => {
+  const dbPath = getDbPath();
+  const app = createApp({ dbPath });
+
+  try {
+    await request(app)
+      .post('/api/users/register')
+      .send({
+        name: 'Evan Ross',
+        email: 'evan@example.com',
+        password: 'password123',
+      })
+      .expect(201);
+
+    await request(app)
+      .post('/api/users/login')
+      .send({
+        email: 'evan@example.com',
+        password: 'wrong-password',
+      })
+      .expect(401);
+  } finally {
+    await closeAndRemoveDb(app, dbPath);
+  }
+});
+
 test('rejects reservation access without authentication', async () => {
   const dbPath = getDbPath();
   const app = createApp({ dbPath });
