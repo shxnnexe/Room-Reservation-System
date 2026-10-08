@@ -79,6 +79,33 @@ test('logs in an existing user with a valid password', async () => {
   }
 });
 
+test('rejects duplicate registration attempts for the same email', async () => {
+  const dbPath = getDbPath();
+  const app = createApp({ dbPath });
+
+  try {
+    await request(app)
+      .post('/api/users/register')
+      .send({
+        name: 'Dana Stone',
+        email: 'dana@example.com',
+        password: 'password123',
+      })
+      .expect(201);
+
+    await request(app)
+      .post('/api/users/register')
+      .send({
+        name: 'Dana Stone',
+        email: 'dana@example.com',
+        password: 'password123',
+      })
+      .expect(409);
+  } finally {
+    await closeAndRemoveDb(app, dbPath);
+  }
+});
+
 test('rejects reservation access without authentication', async () => {
   const dbPath = getDbPath();
   const app = createApp({ dbPath });
