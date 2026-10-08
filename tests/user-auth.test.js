@@ -132,6 +132,37 @@ test('rejects invalid login credentials', async () => {
   }
 });
 
+test('stores a bcrypt hash instead of the raw password', async () => {
+  const dbPath = getDbPath();
+  const app = createApp({ dbPath });
+
+  try {
+    await request(app)
+      .post('/api/users/register')
+      .send({
+        name: 'Frank Lee',
+        email: 'frank@example.com',
+        password: 'password123',
+      })
+      .expect(201);
+
+    const userRow = await new Promise((resolve, reject) => {
+      app.locals.db.get('SELECT password_hash FROM users WHERE email = ?', ['frank@example.com'], (err, row) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        resolve(row);
+      });
+    });
+
+    assert.notEqual(userRow.password_hash, 'password123');
+    assert.match(userRow.password_hash, /^\$2[aby]\$/);
+  } finally {
+    await closeAndRemoveDb(app, dbPath);
+  }
+});
+
 test('rejects reservation access without authentication', async () => {
   const dbPath = getDbPath();
   const app = createApp({ dbPath });
