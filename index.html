@@ -26,6 +26,56 @@
         <p class="status" id="rooms-status" role="status" aria-live="polite">Loading rooms...</p>
         <div class="room-grid" id="rooms-list"></div>
       </section>
+
+      <section class="workflow-section" aria-labelledby="sign-in-heading" id="sign-in-panel">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Your account</p>
+            <h2 id="sign-in-heading">Sign in to reserve a room</h2>
+          </div>
+        </div>
+        <form class="form-card" id="login-form">
+          <label>
+            Email
+            <input autocomplete="username" name="email" type="email" required>
+          </label>
+          <label>
+            Password
+            <input autocomplete="current-password" name="password" type="password" required>
+          </label>
+          <button class="button button-primary" type="submit">Sign in</button>
+          <p class="status" id="login-status" role="status" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <section class="workflow-section" aria-labelledby="reservation-heading" id="reservation-panel" hidden>
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Make a booking</p>
+            <h2 id="reservation-heading">Reserve a room</h2>
+          </div>
+        </div>
+        <form class="form-card" id="reservation-form">
+          <label>
+            Room
+            <select id="reservation-room" name="roomId" required>
+              <option value="">Choose a room</option>
+            </select>
+          </label>
+          <div class="form-row">
+            <label>
+              Start date
+              <input id="reservation-start" name="startDate" type="date" required>
+            </label>
+            <label>
+              End date
+              <input id="reservation-end" name="endDate" type="date" required>
+            </label>
+          </div>
+          <button class="button button-primary" id="reservation-submit" type="submit">Create reservation</button>
+          <p class="status" id="reservation-status" role="status" aria-live="polite"></p>
+        </form>
+      </section>
     </main>
   </body>
 </html>

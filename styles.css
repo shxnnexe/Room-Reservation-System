@@ -32,6 +32,46 @@ select {
   margin-bottom: 52px;
 }
 
+.workflow-section {
+  margin-top: 56px;
+}
+
+.form-card {
+  display: grid;
+  max-width: 660px;
+  gap: 18px;
+  padding: 24px;
+  border: 1px solid #dce5e4;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgb(23 43 58 / 5%);
+}
+
+.form-card label {
+  display: grid;
+  gap: 8px;
+  color: #425864;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.form-card input,
+.form-card select {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid #c7d4d2;
+  border-radius: 8px;
+  background: #fff;
+  color: #172b3a;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
 .eyebrow {
   margin: 0 0 10px;
   color: #167c70;
@@ -142,6 +182,20 @@ select:focus-visible {
   background: #edf5f4;
 }
 
+.button-primary {
+  background: #167c70;
+  color: #fff;
+}
+
+.button-primary:hover {
+  background: #11685e;
+}
+
+.button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
 @media (max-width: 540px) {
   .page {
     width: min(100% - 28px, 1040px);
@@ -151,5 +205,9 @@ select:focus-visible {
   .section-heading {
     align-items: start;
     flex-direction: column;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
   }
 }
