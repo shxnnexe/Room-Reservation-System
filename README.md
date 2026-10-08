@@ -10,7 +10,7 @@ npm install
 npm start
 ```
 
-`GET /api/rooms` lists rooms as `{ "rooms": [...], "count": 0 }`. Pass `?q=term` to search room names and room numbers; an empty result is returned as an empty array.
+`GET /api/rooms` returns an array of rooms (including `id`, `name`, `room_name`, `room_number`, `capacity`, `description`, `location`, and `availability_status`). Pass `?q=term` to search room names and room numbers; an empty result is returned as `[]`. `POST /api/rooms` creates a room and requires a valid bearer token; provide non-empty `room_name`, `room_number`, and `description`, a positive integer `capacity`, and an optional `availability_status` of `available` or `unavailable`.
 
 ## Frontend
 
