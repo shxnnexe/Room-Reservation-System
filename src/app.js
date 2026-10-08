@@ -5,6 +5,7 @@ const { randomUUID } = require('crypto');
 const { initializeDatabase } = require('./db');
 const userRoutes = require('./routes/userRoutes');
 const reservationRoutes = require('./routes/reservationRoutes');
+const roomRoutes = require('./routes/roomRoutes');
 
 const SECRET = process.env.JWT_SECRET || 'room-reservation-secret';
 
@@ -320,6 +321,7 @@ function createApp({ dbPath, jwtSecret } = {}) {
 
   databaseApp.use('/api/users', userRoutes);
   databaseApp.use('/api/reservations', reservationRoutes);
+  databaseApp.use('/api/rooms', roomRoutes);
 
   databaseApp.use((err, _req, res, _next) => {
     console.error(err);
