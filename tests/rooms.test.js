@@ -2,6 +2,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
+const request = require('supertest');
+const { createApp } = require('../src/app');
 const { initializeDatabase } = require('../src/db');
 const { createRoom, listRooms } = require('../src/models/Room');
 
@@ -48,5 +50,41 @@ test('Room model stores and retrieves room details from SQLite', async () => {
     assert.equal(rooms[0].id, created.id);
   } finally {
     await closeAndRemoveDb(db, dbPath);
+  }
+});
+
+test('GET /api/rooms returns an empty collection when no rooms exist', async () => {
+  const dbPath = getDbPath();
+  const app = createApp({ dbPath });
+
+  try {
+    const response = await request(app).get('/api/rooms').expect(200);
+
+    assert.deepEqual(response.body, { rooms: [], count: 0 });
+  } finally {
+    await closeAndRemoveDb(app.locals.db, dbPath);
+  }
+});
+
+test('GET /api/rooms returns persisted room details', async () => {
+  const dbPath = getDbPath();
+  const app = createApp({ dbPath });
+
+  try {
+    await createRoom(app.locals.db, {
+      room_name: 'Training Room',
+      room_number: 'T-202',
+      capacity: 20,
+      description: 'Training and workshop space',
+    });
+
+    const response = await request(app).get('/api/rooms').expect(200);
+
+    assert.equal(response.body.count, 1);
+    assert.equal(response.body.rooms[0].room_name, 'Training Room');
+    assert.equal(response.body.rooms[0].room_number, 'T-202');
+    assert.equal(response.body.rooms[0].capacity, 20);
+  } finally {
+    await closeAndRemoveDb(app.locals.db, dbPath);
   }
 });
