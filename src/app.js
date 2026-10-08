@@ -2,6 +2,9 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { randomUUID } = require('crypto');
+const { initializeDatabase } = require('./db');
+const userRoutes = require('./routes/userRoutes');
+const reservationRoutes = require('./routes/reservationRoutes');
 
 const SECRET = process.env.JWT_SECRET || 'room-reservation-secret';
 
@@ -302,4 +305,28 @@ app.use((error, req, res, next) => {
   return res.status(500).json(errorResponse('Internal server error', 500, error.message));
 });
 
-module.exports = { app, resetState, users, rooms, reservations };
+function createApp({ dbPath, jwtSecret } = {}) {
+  const databaseApp = express();
+  const database = initializeDatabase(dbPath);
+
+  databaseApp.locals.db = database;
+  databaseApp.locals.jwtSecret = jwtSecret || process.env.JWT_SECRET || 'room-reservation-secret';
+
+  databaseApp.use(express.json());
+
+  databaseApp.get('/health', (_req, res) => {
+    res.json({ status: 'ok' });
+  });
+
+  databaseApp.use('/api/users', userRoutes);
+  databaseApp.use('/api/reservations', reservationRoutes);
+
+  databaseApp.use((err, _req, res, _next) => {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error.' });
+  });
+
+  return databaseApp;
+}
+
+module.exports = { app, createApp, resetState, users, rooms, reservations };
