@@ -44,7 +44,7 @@ function initializeDatabase(dbPath = DEFAULT_DB_PATH) {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         room_name TEXT NOT NULL,
         room_number TEXT NOT NULL UNIQUE,
-        capacity INTEGER NOT NULL,
+        capacity INTEGER NOT NULL CHECK (capacity > 0),
         description TEXT NOT NULL,
         availability_status TEXT NOT NULL DEFAULT 'available'
           CHECK (availability_status IN ('available', 'unavailable')),

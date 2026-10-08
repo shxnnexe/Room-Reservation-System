@@ -5,7 +5,7 @@ const path = require('path');
 const request = require('supertest');
 const { createApp } = require('../src/app');
 const { initializeDatabase } = require('../src/db');
-const { createRoom, listRooms } = require('../src/models/Room');
+const { createRoom, listRooms, validateCapacity } = require('../src/models/Room');
 
 function getDbPath() {
   return path.join(__dirname, '..', 'data', `test-rooms-${Date.now()}-${Math.random().toString(16).slice(2)}.db`);
@@ -51,6 +51,17 @@ test('Room model stores and retrieves room details from SQLite', async () => {
   } finally {
     await closeAndRemoveDb(db, dbPath);
   }
+});
+
+test('room capacity must be a positive integer', () => {
+  for (const capacity of [0, -1, 2.5, '4', null]) {
+    assert.throws(() => validateCapacity(capacity), {
+      name: 'RangeError',
+      message: 'Capacity must be a positive integer.',
+    });
+  }
+
+  assert.doesNotThrow(() => validateCapacity(1));
 });
 
 test('GET /api/rooms returns an empty collection when no rooms exist', async () => {
