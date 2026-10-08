@@ -12,29 +12,32 @@ function validateEmail(value) {
 
 router.post('/register', async (req, res) => {
   const { name, email, password } = req.body || {};
+  const rawName = typeof name === 'string' ? name : String(name || '');
+  const rawEmail = typeof email === 'string' ? email : String(email || '');
+  const rawPassword = typeof password === 'string' ? password : String(password || '');
 
-  if (!name || !email || !password) {
+  if (!rawName || !rawEmail || !rawPassword) {
     return res.status(400).json({ error: 'Name, email, and password are required.' });
   }
 
-  const trimmedName = String(name).trim();
-  const normalizedEmail = String(email).trim().toLowerCase();
+  const trimmedName = rawName.trim();
+  const normalizedEmail = rawEmail.trim().toLowerCase();
 
   if (!trimmedName || !validateEmail(normalizedEmail)) {
     return res.status(400).json({ error: 'Please provide a valid name and email address.' });
   }
 
-  if (String(password).length < 6) {
+  if (rawPassword.length < 6) {
     return res.status(400).json({ error: 'Password must contain at least 6 characters.' });
   }
 
-  const existingUser = await findUserByEmail(req.app.locals.db, normalizedEmail);
-  if (existingUser) {
-    return res.status(409).json({ error: 'User already exists.' });
-  }
-
   try {
-    const passwordHash = await bcrypt.hash(String(password), 10);
+    const existingUser = await findUserByEmail(req.app.locals.db, normalizedEmail);
+    if (existingUser) {
+      return res.status(409).json({ error: 'User already exists.' });
+    }
+
+    const passwordHash = await bcrypt.hash(rawPassword, 10);
     const user = await createUser(req.app.locals.db, {
       name: trimmedName,
       email: normalizedEmail,
