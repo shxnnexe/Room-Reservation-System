@@ -54,10 +54,32 @@ function validateReservationPayload(payload) {
     throw new Error('endDate must be after startDate');
   }
 
+  if (payload.capacity && Number(payload.capacity) < 1) {
+    throw new Error('capacity must be greater than zero when provided');
+  }
+
   return {
     roomId: payload.roomId,
     startDate,
     endDate,
+    capacity: payload.capacity ? Number(payload.capacity) : null,
+  };
+}
+
+function validateRoomPayload(payload) {
+  if (!payload || !payload.name || !payload.location || !payload.capacity) {
+    throw new Error('name, location, and capacity are required');
+  }
+
+  const capacity = Number(payload.capacity);
+  if (!Number.isInteger(capacity) || capacity <= 0) {
+    throw new Error('capacity must be a positive integer');
+  }
+
+  return {
+    name: String(payload.name).trim(),
+    location: String(payload.location).trim(),
+    capacity,
   };
 }
 
@@ -184,7 +206,38 @@ app.post('/api/users/login', async (req, res) => {
 });
 
 app.get('/api/rooms', (req, res) => {
-  return res.json(successResponse(rooms, 'Available rooms retrieved'));
+  const { search = '', capacity } = req.query;
+  const normalizedSearch = String(search).trim().toLowerCase();
+  const minCapacity = capacity !== undefined ? Number(capacity) : null;
+
+  const filteredRooms = rooms.filter((room) => {
+    const matchesSearch = !normalizedSearch || room.name.toLowerCase().includes(normalizedSearch) || room.location.toLowerCase().includes(normalizedSearch);
+    const matchesCapacity = minCapacity === null || room.capacity >= minCapacity;
+    return matchesSearch && matchesCapacity;
+  });
+
+  return res.json(successResponse(filteredRooms, 'Available rooms retrieved'));
+});
+
+app.post('/api/rooms', requireAuth, (req, res) => {
+  try {
+    const validatedRoom = validateRoomPayload(req.body);
+    const existingRoom = rooms.find((room) => room.name.toLowerCase() === validatedRoom.name.toLowerCase());
+
+    if (existingRoom) {
+      return res.status(409).json(errorResponse('Room already exists', 409));
+    }
+
+    const room = {
+      id: `room-${rooms.length + 101}`,
+      ...validatedRoom,
+    };
+
+    rooms.push(room);
+    return res.status(201).json(successResponse(room, 'Room created successfully'));
+  } catch (error) {
+    return res.status(400).json(errorResponse(error.message, 400));
+  }
 });
 
 app.get('/api/reservations', requireAuth, (req, res) => {
@@ -199,6 +252,11 @@ app.post('/api/reservations', requireAuth, (req, res) => {
 
     if (!roomExists) {
       return res.status(404).json(errorResponse('Room not found', 404));
+    }
+
+    const selectedRoom = rooms.find((room) => room.id === payload.roomId);
+    if (selectedRoom && payload.capacity !== null && payload.capacity > selectedRoom.capacity) {
+      return res.status(400).json(errorResponse(`Room capacity is ${selectedRoom.capacity}; requested capacity exceeds available space`, 400));
     }
 
     if (!isRoomAvailable(payload.roomId, payload.startDate, payload.endDate)) {
