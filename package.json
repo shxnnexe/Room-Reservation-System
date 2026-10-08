@@ -1,0 +1,20 @@
+{
+  "name": "room-reservation-system",
+  "version": "1.0.0",
+  "description": "Room reservation backend service",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "keywords": [
+    "room",
+    "reservation",
+    "backend"
+  ],
+  "author": "Group 14",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}
