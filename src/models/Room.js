@@ -41,16 +41,26 @@ function validateCapacity(capacity) {
   }
 }
 
-function listRooms(db) {
-  return new Promise((resolve, reject) => {
-    db.all(`SELECT ${ROOM_FIELDS} FROM rooms ORDER BY room_number ASC`, (err, rooms) => {
-      if (err) {
-        reject(err);
-        return;
-      }
+function listRooms(db, searchTerm = '') {
+  const escapedSearchTerm = searchTerm.replace(/[\\%_]/g, '\\$&');
+  const pattern = `%${escapedSearchTerm}%`;
 
-      resolve(rooms || []);
-    });
+  return new Promise((resolve, reject) => {
+    db.all(
+      `SELECT ${ROOM_FIELDS}
+       FROM rooms
+       WHERE (? = '' OR room_name LIKE ? ESCAPE '\\' OR room_number LIKE ? ESCAPE '\\')
+       ORDER BY room_number ASC`,
+      [searchTerm, pattern, pattern],
+      (err, rooms) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+
+        resolve(rooms || []);
+      }
+    );
   });
 }
 

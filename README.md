@@ -2,29 +2,15 @@
 
 Group 14
 
-## Backend project bootstrap
+## Backend
 
-This repository now includes a minimal Express-based backend structure for the room reservation service.
-
-### Included
-- Express app bootstrap
-- Room and reservation route scaffolding
-- Authentication middleware stub
-- Standardized success and error responses
-- Date and room-availability validation logic
-
-### Branches
-- ROOM-BE-01
-- ROOM-BE-02
-- ROOM-BE-03
-- ROOM-BE-04
-- ROOM-BE-05
-
-### Run locally
+Install dependencies and start the Express API:
 ```bash
 npm install
 npm start
 ```
+
+`GET /api/rooms` lists rooms as `{ "rooms": [...], "count": 0 }`. Pass `?q=term` to search room names and room numbers; an empty result is returned as an empty array.
 
 ## Frontend
 

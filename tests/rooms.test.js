@@ -99,3 +99,48 @@ test('GET /api/rooms returns persisted room details', async () => {
     await closeAndRemoveDb(app.locals.db, dbPath);
   }
 });
+
+test('GET /api/rooms searches room names and numbers case-insensitively', async () => {
+  const dbPath = getDbPath();
+  const app = createApp({ dbPath });
+
+  try {
+    await createRoom(app.locals.db, {
+      room_name: 'Board Meeting Room',
+      room_number: 'B-101',
+      capacity: 8,
+      description: 'Executive meeting room',
+    });
+    await createRoom(app.locals.db, {
+      room_name: 'Workshop Space',
+      room_number: 'W-202',
+      capacity: 24,
+      description: 'Training room',
+    });
+
+    const byName = await request(app).get('/api/rooms').query({ q: 'meeting' }).expect(200);
+    const byNumber = await request(app).get('/api/rooms').query({ q: 'w-202' }).expect(200);
+    const noMatches = await request(app).get('/api/rooms').query({ q: 'nonexistent' }).expect(200);
+
+    assert.equal(byName.body.count, 1);
+    assert.equal(byName.body.rooms[0].room_number, 'B-101');
+    assert.equal(byNumber.body.count, 1);
+    assert.equal(byNumber.body.rooms[0].room_name, 'Workshop Space');
+    assert.deepEqual(noMatches.body, { rooms: [], count: 0 });
+  } finally {
+    await closeAndRemoveDb(app.locals.db, dbPath);
+  }
+});
+
+test('GET /api/rooms rejects repeated search query values', async () => {
+  const dbPath = getDbPath();
+  const app = createApp({ dbPath });
+
+  try {
+    const response = await request(app).get('/api/rooms').query({ q: ['board', 'workshop'] }).expect(400);
+
+    assert.equal(response.body.error, 'Search query must be a single string.');
+  } finally {
+    await closeAndRemoveDb(app.locals.db, dbPath);
+  }
+});
