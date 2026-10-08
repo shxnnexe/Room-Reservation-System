@@ -133,6 +133,16 @@ function renderReservations(reservations) {
     status.textContent = reservation.status || "active";
     details.append(heading, dates, status);
     card.append(details);
+
+    if (String(reservation.status || "active").toLowerCase() !== "cancelled") {
+      const cancelButton = document.createElement("button");
+      cancelButton.className = "button button-secondary";
+      cancelButton.type = "button";
+      cancelButton.dataset.reservationId = reservation.id;
+      cancelButton.textContent = "Cancel reservation";
+      card.append(cancelButton);
+    }
+
     return card;
   });
 
@@ -161,6 +171,26 @@ async function loadReservations() {
     setStatus(reservationsStatus, error.message, true);
   } finally {
     refreshReservationsButton.disabled = false;
+  }
+}
+
+async function cancelReservation(reservationId, button) {
+  if (!window.confirm("Cancel this reservation?")) {
+    return;
+  }
+
+  button.disabled = true;
+  setStatus(reservationsStatus, "Cancelling reservation...");
+
+  try {
+    await apiRequest(`/reservations/${encodeURIComponent(reservationId)}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${authToken}` },
+    });
+    await loadReservations();
+  } catch (error) {
+    setStatus(reservationsStatus, error.message, true);
+    button.disabled = false;
   }
 }
 
@@ -237,6 +267,12 @@ reservationForm.addEventListener("submit", async (event) => {
 
 refreshButton.addEventListener("click", loadRooms);
 refreshReservationsButton.addEventListener("click", loadReservations);
+reservationsList.addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-reservation-id]");
+  if (button) {
+    cancelReservation(button.dataset.reservationId, button);
+  }
+});
 const today = new Date();
 today.setMinutes(today.getMinutes() - today.getTimezoneOffset());
 document.querySelector("#reservation-start").min = today.toISOString().slice(0, 10);
