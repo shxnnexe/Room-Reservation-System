@@ -32,6 +32,50 @@ select {
   margin-bottom: 52px;
 }
 
+.api-settings {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.6fr) minmax(280px, 1fr);
+  align-items: start;
+  gap: 24px;
+  margin-bottom: 48px;
+  padding: 22px 24px;
+  border: 1px solid #dce5e4;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.api-settings h2 {
+  font-size: 1.2rem;
+}
+
+.api-settings-form {
+  display: grid;
+  gap: 8px;
+  color: #425864;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.api-settings-controls {
+  display: flex;
+  gap: 10px;
+}
+
+.api-settings-controls input {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid #c7d4d2;
+  border-radius: 8px;
+  color: #172b3a;
+}
+
+.api-settings-form .status {
+  margin: 0;
+  font-weight: 400;
+}
+
 .workflow-section {
   margin-top: 56px;
 }
@@ -57,6 +101,13 @@ select {
   color: #425864;
   font-size: 0.9rem;
   font-weight: 600;
+}
+
+.form-hint {
+  margin: -8px 0 0;
+  color: #60717c;
+  font-size: 0.85rem;
+  font-weight: 400;
 }
 
 .form-card input,
@@ -252,6 +303,16 @@ select:focus-visible {
 
   .form-row {
     grid-template-columns: 1fr;
+  }
+
+  .api-settings {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .api-settings-controls {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .reservation-card {

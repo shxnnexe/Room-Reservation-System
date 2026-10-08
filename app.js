@@ -1,8 +1,11 @@
-const API_BASE_URL = window.ROOM_API_BASE_URL || "/api";
+let apiBaseUrl = window.ROOM_API_BASE_URL || "/api";
 
 const roomList = document.querySelector("#rooms-list");
 const roomStatus = document.querySelector("#rooms-status");
 const refreshButton = document.querySelector("#refresh-rooms");
+const apiSettingsForm = document.querySelector("#api-settings-form");
+const apiBaseUrlInput = document.querySelector("#api-base-url");
+const apiSettingsStatus = document.querySelector("#api-settings-status");
 const reservationRoom = document.querySelector("#reservation-room");
 const loginPanel = document.querySelector("#sign-in-panel");
 const loginForm = document.querySelector("#login-form");
@@ -18,14 +21,39 @@ let authToken = null;
 let roomCatalog = [];
 
 async function apiRequest(path, options = {}) {
-  const response = await fetch(`${API_BASE_URL}${path}`, options);
+  const response = await fetch(`${apiBaseUrl}${path}`, options);
   const body = await response.json();
 
   if (!response.ok || body.success === false) {
-    throw new Error(body.error?.message || `Request failed (${response.status})`);
+    const message = typeof body.error === "string" ? body.error : body.error?.message;
+    throw new Error(message || body.message || `Request failed (${response.status})`);
   }
 
   return body.data ?? body;
+}
+
+function normalizeApiBaseUrl(value) {
+  const baseUrl = value.trim().replace(/\/+$/, "");
+  if (!baseUrl) {
+    throw new Error("Enter an API base URL.");
+  }
+
+  if (baseUrl.startsWith("/") && !baseUrl.startsWith("//")) {
+    return baseUrl;
+  }
+
+  let url;
+  try {
+    url = new URL(baseUrl);
+  } catch {
+    throw new Error("Enter a valid relative path or an HTTP(S) API URL.");
+  }
+
+  if (!["http:", "https:"].includes(url.protocol) || url.username || url.password || url.search || url.hash) {
+    throw new Error("Use an HTTP(S) API URL without credentials, query parameters, or a fragment.");
+  }
+
+  return `${url.origin}${url.pathname.replace(/\/+$/, "")}`;
 }
 
 function setStatus(element, message, isError = false) {
@@ -82,6 +110,31 @@ function renderRooms(rooms) {
   roomList.append(...cards);
   roomStatus.textContent = `${rooms.length} ${rooms.length === 1 ? "room" : "rooms"} found.`;
 }
+
+apiBaseUrlInput.value = apiBaseUrl;
+apiSettingsForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+
+  try {
+    const nextApiBaseUrl = normalizeApiBaseUrl(apiBaseUrlInput.value);
+    const changed = nextApiBaseUrl !== apiBaseUrl;
+    apiBaseUrl = nextApiBaseUrl;
+
+    if (changed && authToken) {
+      authToken = null;
+      loginPanel.hidden = false;
+      reservationPanel.hidden = true;
+      reservationsList.replaceChildren();
+      setStatus(reservationsStatus, "");
+      setStatus(loginStatus, "API endpoint changed. Sign in again.");
+    }
+
+    setStatus(apiSettingsStatus, `Using ${apiBaseUrl}.`);
+    loadRooms();
+  } catch (error) {
+    setStatus(apiSettingsStatus, error.message, true);
+  }
+});
 
 function formatDate(value) {
   const date = new Date(value);

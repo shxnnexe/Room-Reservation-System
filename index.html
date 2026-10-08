@@ -15,6 +15,21 @@
         <p class="intro">Browse the rooms available in the reservation system.</p>
       </header>
 
+      <section class="api-settings" aria-labelledby="api-settings-heading">
+        <div>
+          <p class="eyebrow">Connection</p>
+          <h2 id="api-settings-heading">Backend API</h2>
+        </div>
+        <form class="api-settings-form" id="api-settings-form">
+          <label for="api-base-url">API base URL</label>
+          <div class="api-settings-controls">
+            <input id="api-base-url" name="apiBaseUrl" type="text" inputmode="url" autocomplete="url" required>
+            <button class="button button-primary" type="submit">Connect</button>
+          </div>
+          <p class="status" id="api-settings-status" role="status" aria-live="polite"></p>
+        </form>
+      </section>
+
       <section aria-labelledby="rooms-heading">
         <div class="section-heading">
           <div>
@@ -44,6 +59,7 @@
             <input autocomplete="current-password" name="password" type="password" required>
           </label>
           <button class="button button-primary" type="submit">Sign in</button>
+          <p class="form-hint">Use an existing account. Sign-in credentials are sent only to the configured API.</p>
           <p class="status" id="login-status" role="status" aria-live="polite"></p>
         </form>
       </section>
