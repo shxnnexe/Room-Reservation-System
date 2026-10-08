@@ -75,6 +75,18 @@
           <button class="button button-primary" id="reservation-submit" type="submit">Create reservation</button>
           <p class="status" id="reservation-status" role="status" aria-live="polite"></p>
         </form>
+
+        <div class="reservation-list-section">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Your bookings</p>
+              <h2>Your reservations</h2>
+            </div>
+            <button class="button button-secondary" id="refresh-reservations" type="button">Refresh reservations</button>
+          </div>
+          <p class="status" id="reservations-status" role="status" aria-live="polite"></p>
+          <div class="reservation-list" id="reservations-list"></div>
+        </div>
       </section>
     </main>
   </body>

@@ -11,7 +11,11 @@ const reservationPanel = document.querySelector("#reservation-panel");
 const reservationForm = document.querySelector("#reservation-form");
 const reservationStatus = document.querySelector("#reservation-status");
 const reservationSubmit = document.querySelector("#reservation-submit");
+const reservationsList = document.querySelector("#reservations-list");
+const reservationsStatus = document.querySelector("#reservations-status");
+const refreshReservationsButton = document.querySelector("#refresh-reservations");
 let authToken = null;
+let roomCatalog = [];
 
 async function apiRequest(path, options = {}) {
   const response = await fetch(`${API_BASE_URL}${path}`, options);
@@ -30,6 +34,7 @@ function setStatus(element, message, isError = false) {
 }
 
 function renderRooms(rooms) {
+  roomCatalog = rooms;
   roomList.replaceChildren();
   reservationRoom.replaceChildren(new Option("Choose a room", ""));
 
@@ -78,6 +83,15 @@ function renderRooms(rooms) {
   roomStatus.textContent = `${rooms.length} ${rooms.length === 1 ? "room" : "rooms"} found.`;
 }
 
+function formatDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeZone: "UTC" }).format(date);
+}
+
 async function loadRooms() {
   refreshButton.disabled = true;
   setStatus(roomStatus, "Loading rooms...");
@@ -93,6 +107,60 @@ async function loadRooms() {
     setStatus(roomStatus, error.message, true);
   } finally {
     refreshButton.disabled = false;
+  }
+}
+
+function renderReservations(reservations) {
+  reservationsList.replaceChildren();
+
+  if (reservations.length === 0) {
+    setStatus(reservationsStatus, "You do not have any reservations yet.");
+    return;
+  }
+
+  const cards = reservations.map((reservation) => {
+    const card = document.createElement("article");
+    card.className = "reservation-card";
+
+    const details = document.createElement("div");
+    const room = roomCatalog.find((entry) => entry.id === reservation.roomId);
+    const heading = document.createElement("h3");
+    heading.textContent = room?.name || room?.type || `Room ${reservation.roomId}`;
+    const dates = document.createElement("p");
+    dates.textContent = `${formatDate(reservation.startDate)} - ${formatDate(reservation.endDate)}`;
+    const status = document.createElement("span");
+    status.className = "reservation-status";
+    status.textContent = reservation.status || "active";
+    details.append(heading, dates, status);
+    card.append(details);
+    return card;
+  });
+
+  reservationsList.append(...cards);
+  setStatus(reservationsStatus, `${reservations.length} ${reservations.length === 1 ? "reservation" : "reservations"}.`);
+}
+
+async function loadReservations() {
+  if (!authToken) {
+    return;
+  }
+
+  refreshReservationsButton.disabled = true;
+  setStatus(reservationsStatus, "Loading reservations...");
+
+  try {
+    const reservations = await apiRequest("/reservations", {
+      headers: { Authorization: `Bearer ${authToken}` },
+    });
+    if (!Array.isArray(reservations)) {
+      throw new Error("The reservations API returned an unexpected response.");
+    }
+    renderReservations(reservations);
+  } catch (error) {
+    reservationsList.replaceChildren();
+    setStatus(reservationsStatus, error.message, true);
+  } finally {
+    refreshReservationsButton.disabled = false;
   }
 }
 
@@ -122,6 +190,7 @@ loginForm.addEventListener("submit", async (event) => {
     reservationPanel.hidden = false;
     setStatus(reservationStatus, result.user?.name ? `Signed in as ${result.user.name}.` : "Signed in.");
     await loadRooms();
+    await loadReservations();
   } catch (error) {
     setStatus(loginStatus, error.message, true);
   } finally {
@@ -158,6 +227,7 @@ reservationForm.addEventListener("submit", async (event) => {
     });
     reservationForm.reset();
     setStatus(reservationStatus, `Reservation ${reservation.id} created.`);
+    await loadReservations();
   } catch (error) {
     setStatus(reservationStatus, error.message, true);
   } finally {
@@ -166,6 +236,7 @@ reservationForm.addEventListener("submit", async (event) => {
 });
 
 refreshButton.addEventListener("click", loadRooms);
+refreshReservationsButton.addEventListener("click", loadReservations);
 const today = new Date();
 today.setMinutes(today.getMinutes() - today.getTimezoneOffset());
 document.querySelector("#reservation-start").min = today.toISOString().slice(0, 10);
